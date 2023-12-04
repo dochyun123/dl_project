@@ -62,8 +62,6 @@ columns = [
 ]
 target_df = pd.DataFrame(columns=columns)
 processor = DataFrameProcessor(source_df, target_df)
-print("Source DataFrame columns:", processor.source_df.columns)
-print("Target DataFrame columns:", processor.target_df.columns)
 
 # Clean the '항목명' column
 processor.clean_column("항목명")
