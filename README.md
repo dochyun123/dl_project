@@ -1,2 +1,2 @@
 # dl_project
-I will predict valuation of company using NLP
+I will predict valuation of company 
