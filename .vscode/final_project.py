@@ -100,3 +100,71 @@ def merge_with_label(data, label):
     merged_df = pd.merge(data, label, on="종목코드", how="inner")
 
     return merged_df
+
+
+import pandas as pd
+
+# 1step : preprocess
+
+BS_item = ["유동자산", "비유동자산", "자산총계", "자본총계", "부채및자본총계", "유동부채", "비유동부채", "부채총계"]
+CF_item = ["영업활동현금흐름"]
+IC_item = ["매출액", "매출총이익", "순이익"]
+
+
+def preprocess(
+    file_path, item_names_to_extract
+):  # item_names 에 BS_item / CF_item / IC_item 넣기
+    # Load the data
+    data = pd.read_excel(file_path)
+
+    # Erase blank spaces and special characters in '항목명'
+    data["항목명"] = (
+        data["항목명"].str.replace(" ", "").str.replace(r"[^가-힣]", "", regex=True)
+    )
+
+    # If '종목코드' column is present, format it by removing brackets
+    if "종목코드" in data.columns:
+        data["종목코드"] = data["종목코드"].str.replace("[", "").str.replace("]", "")
+
+    # Extract the specified item names
+    extracted_data = data[data["항목명"].isin(item_names_to_extract)]
+    extracted_data = extracted_data.pivot(
+        index=["회사명", "종목코드"], columns="항목명", values="당기 1분기"
+    ).reset_index()
+
+    return extracted_data
+
+
+# 2nd step : fillna preprocessed dataframe
+
+
+def fillnan(df):
+    # Filling NaN values using the provided formulas
+    df["자산총계"] = df["자산총계"].fillna(df["유동자산"] + df["비유동자산"])
+    df["부채총계"] = df["부채총계"].fillna(df["유동부채"] + df["비유동부채"])
+    df["부채및자본총계"] = df["부채및자본총계"].fillna(df["부채총계"] + df["자본총계"])
+    df["자본총계"] = df["자본총계"].fillna(df["부채및자본총계"] - df["부채총계"])
+    return df
+
+
+# 3rd step : merge preprocessed dataframe
+
+import pandas as pd
+
+
+def merge(BS_df, CF_df, IC_df):
+    merged_df = pd.merge(BS_df, CF_df, on=["회사명", "종목코드"], how="outer")
+    merged_df = pd.merge(merged_df, IC_df, on=["회사명", "종목코드"], how="outer")
+
+    return merged_df
+
+
+# 4th step : merge label
+def create_class_and_merge(data_df, label_df, drop_columns):
+    label_df["class"] = label_df["등락률"].apply(
+        lambda x: 0 if x <= -10 else (1 if x < 0 else (2 if x < 10 else 3))
+    )
+    label_df = label_df.drop(drop_columns, axis=1)
+    merged_df = pd.merge(data_df, label_df, on=["종목코드"], how="outer")
+
+    return merged_df
